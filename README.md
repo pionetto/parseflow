@@ -66,7 +66,7 @@ Você pode executar este comando diretamente em um terminal Linux.
 O sistema conecta-se ao PostgreSQL e cria automaticamente a tabela clientes caso ela não exista. Para acessar o banco via CLI:
 
 ```
-docker exec -it parseflow_postgres psql -U postgres -d parserflow_db
+docker exec -it parseflow_db psql -U postgres -d parserflow_db
 ```
 
 Logs e Debug
