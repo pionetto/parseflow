@@ -55,11 +55,10 @@ docker-compose up
 Para enviar um arquivo para processamento, utilize o comando curl:
 
 ```
-curl -X POST -F "file=@caminho/do/arquivo.csv" http://localhost:8080/upload
+curl -X POST -F "file=@base_teste.txt" http://localhost:8080/upload
 ```
 
-Altere caminho/do/arquivo.csv pelo caminho real do seu arquivo.
-Na raiz do projeto este aqui já existe, chamado base_teste.txt
+Você pode executar este comando diretamente em um terminal Linux.
 
 
 ## Banco de Dados
