@@ -11,12 +11,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 const BatchSize = 1000
+const NumWorkers = 4
 
 var re = regexp.MustCompile(`\s{2,}`)
 
@@ -79,19 +81,43 @@ func processarArquivo(filePath string) {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	var clientes []config.Cliente
+	linesChan := make(chan string, 1000)
+	clientesChan := make(chan config.Cliente, 1000)
 
+	var wg sync.WaitGroup
+
+	for i := 0; i < NumWorkers; i++ {
+		wg.Add(1)
+		go worker(linesChan, clientesChan, &wg)
+	}
+
+	go batchInserter(clientesChan)
+
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
+		linesChan <- line
+	}
+	close(linesChan)
+
+	wg.Wait()
+	close(clientesChan)
+
+	if err := scanner.Err(); err != nil {
+		log.Println("❌ Erro ao ler arquivo TXT:", err)
+	}
+}
+
+func worker(linesChan <-chan string, clientesChan chan<- config.Cliente, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for line := range linesChan {
 		fields := re.Split(line, -1)
 
 		if len(fields) < 8 {
 			log.Printf("❌ Linha ignorada por ter %d colunas, esperado 8: %v", len(fields), fields)
 			continue
 		}
-
-		log.Println("📌 Processando linha:", fields)
 
 		ticketMedio := utils.ParseFloatWithComma(fields[4])
 		if ticketMedio == nil {
@@ -106,18 +132,15 @@ func processarArquivo(filePath string) {
 		}
 
 		cpf, valido := utils.ValidateAndFormatCPF(fields[0])
-
 		if !valido {
 			log.Println("❌ CPF inválido:", fields[0])
 			continue
 		}
 
 		var lojaMaisFrequente, lojaUltimaCompra *string
-
 		if formattedCNPJ, _ := utils.ValidateAndFormatCNPJ(fields[6]); formattedCNPJ != nil {
 			lojaMaisFrequente = formattedCNPJ
 		}
-
 		if formattedCNPJ, _ := utils.ValidateAndFormatCNPJ(fields[7]); formattedCNPJ != nil {
 			lojaUltimaCompra = formattedCNPJ
 		}
@@ -133,21 +156,24 @@ func processarArquivo(filePath string) {
 			LojaUltimaCompra:   lojaUltimaCompra,
 		}
 
-		clientes = append(clientes, cliente)
+		clientesChan <- cliente
+	}
+}
 
-		if len(clientes) >= BatchSize {
-			insertBatch(clientes)
-			clientes = nil
+func batchInserter(clientesChan <-chan config.Cliente) {
+	var batch []config.Cliente
+
+	for cliente := range clientesChan {
+		batch = append(batch, cliente)
+
+		if len(batch) >= BatchSize {
+			insertBatch(batch)
+			batch = nil
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		log.Println("❌ Erro ao ler arquivo TXT:", err)
-		return
-	}
-
-	if len(clientes) > 0 {
-		insertBatch(clientes)
+	if len(batch) > 0 {
+		insertBatch(batch)
 	}
 }
 
@@ -163,13 +189,6 @@ func parseBool(value string) bool {
 		return false
 	}
 	return val
-}
-
-func derefString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 func cleanUploadFolder() {
