@@ -3,26 +3,40 @@ package utils
 import (
 	"log"
 	"os"
+	"path/filepath"
 )
 
-const logFilePath = "logs/invalid_entries.log"
-
 func InitLogDir() {
-	if _, err := os.Stat("logs"); os.IsNotExist(err) {
-		os.Mkdir("logs", os.ModePerm)
+	logDir := "logs"
+
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		if err := os.Mkdir(logDir, 0755); err != nil {
+			log.Println("❌ Erro ao criar diretório logs:", err)
+		} else {
+			log.Println("🗂️ Diretório logs criado com sucesso.")
+		}
 	}
 }
 
-func LogInvalidEntry(entryType, value string) {
+func logInvalid(filename, entryType, value string) {
 	InitLogDir()
 
-	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	filePath := filepath.Join("logs", filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Println("Erro ao abrir arquivo de log:", err)
+		log.Println("❌ Erro ao abrir arquivo de log:", err)
 		return
 	}
 	defer file.Close()
 
 	logger := log.New(file, "", log.LstdFlags)
 	logger.Printf("Entrada inválida (%s): %s\n", entryType, value)
+}
+
+func LogInvalidCPF(cpf string) {
+	logInvalid("cpf_invalido.txt", "CPF", cpf)
+}
+
+func LogInvalidCNPJ(cnpj string) {
+	logInvalid("cnpj_invalido.txt", "CNPJ", cnpj)
 }

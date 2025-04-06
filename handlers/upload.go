@@ -2,6 +2,7 @@ package upload
 
 import (
 	"bufio"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -17,10 +18,19 @@ import (
 
 const BatchSize = 1000
 
-var re = regexp.MustCompile("\\s{2,}")
+var re = regexp.MustCompile(`\s{2,}`)
 
 func UploadHandler(c *gin.Context) {
 	start := time.Now()
+
+	if config.DB == nil {
+		log.Println("🔧 Inicializando banco de dados...")
+		if err := config.ConnectAndPrepareDatabase(); err != nil {
+			log.Printf("Erro ao inicializar o banco: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao preparar o banco de dados"})
+			return
+		}
+	}
 
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -56,6 +66,8 @@ func UploadHandler(c *gin.Context) {
 	duration := time.Since(start)
 	log.Printf("✅ Upload e processamento concluídos em %v", duration)
 
+	cleanUploadFolder()
+
 	c.JSON(http.StatusOK, gin.H{"message": "Upload concluído!", "tempo_execucao": duration.String()})
 }
 
@@ -81,12 +93,6 @@ func processarArquivo(filePath string) {
 
 		log.Println("📌 Processando linha:", fields)
 
-		cpf, valido := utils.ValidateAndFormatCPF(fields[0])
-		if !valido {
-			log.Println("❌ CPF inválido:", fields[0])
-			continue
-		}
-
 		ticketMedio := utils.ParseFloatWithComma(fields[4])
 		if ticketMedio == nil {
 			log.Println("❌ Erro ao converter Ticket Médio:", fields[4])
@@ -99,17 +105,32 @@ func processarArquivo(filePath string) {
 			continue
 		}
 
-		log.Println("✅ Linha válida:", fields)
+		cpf, valido := utils.ValidateAndFormatCPF(fields[0])
+
+		if !valido {
+			log.Println("❌ CPF inválido:", fields[0])
+			continue
+		}
+
+		var lojaMaisFrequente, lojaUltimaCompra *string
+
+		if formattedCNPJ, _ := utils.ValidateAndFormatCNPJ(fields[6]); formattedCNPJ != nil {
+			lojaMaisFrequente = formattedCNPJ
+		}
+
+		if formattedCNPJ, _ := utils.ValidateAndFormatCNPJ(fields[7]); formattedCNPJ != nil {
+			lojaUltimaCompra = formattedCNPJ
+		}
 
 		cliente := config.Cliente{
-			CPF:                cpf,
+			CPF:                *cpf,
 			Private:            parseBool(fields[1]),
 			Incompleto:         parseBool(fields[2]),
 			DataUltimaCompra:   utils.NullifyString(fields[3]),
 			TicketMedio:        ticketMedio,
 			TicketUltimaCompra: ticketUltimaCompra,
-			LojaMaisFrequente:  utils.NullifyString(fields[6]),
-			LojaUltimaCompra:   utils.NullifyString(fields[7]),
+			LojaMaisFrequente:  lojaMaisFrequente,
+			LojaUltimaCompra:   lojaUltimaCompra,
 		}
 
 		clientes = append(clientes, cliente)
@@ -142,4 +163,31 @@ func parseBool(value string) bool {
 		return false
 	}
 	return val
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func cleanUploadFolder() {
+	uploadDir := "./uploads"
+
+	files, err := ioutil.ReadDir(uploadDir)
+	if err != nil {
+		log.Printf("❌ Erro ao ler diretório de uploads: %v", err)
+		return
+	}
+
+	for _, file := range files {
+		filePath := uploadDir + "/" + file.Name()
+		err := os.Remove(filePath)
+		if err != nil {
+			log.Printf("❌ Erro ao remover arquivo %s: %v", filePath, err)
+		} else {
+			log.Printf("🧹 Arquivo removido: %s", filePath)
+		}
+	}
 }

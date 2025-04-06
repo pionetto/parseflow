@@ -2,31 +2,33 @@ package utils
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
-func ValidateAndFormatCPF(cpf string) (string, bool) {
+func ValidateAndFormatCPF(cpf string) (*string, bool) {
 	re := regexp.MustCompile(`\D`)
-	cpf = re.ReplaceAllString(cpf, "")
+	cleanCPF := re.ReplaceAllString(cpf, "")
 
-	if len(cpf) != 11 {
-		log.Println("CPF inválido:", cpf)
-		return cpf, false
+	if len(cleanCPF) != 11 {
+		LogInvalidCPF(cpf)
+		return nil, false
 	}
-	return cpf, true
+
+	return &cleanCPF, true
 }
 
-func ValidateAndFormatCNPJ(cnpj string) (string, bool) {
+func ValidateAndFormatCNPJ(cnpj string) (*string, bool) {
 	re := regexp.MustCompile(`\D`)
 	cleanCNPJ := re.ReplaceAllString(cnpj, "")
 
 	if len(cleanCNPJ) != 14 {
-		return cnpj, false
+		LogInvalidCNPJ(cnpj)
+		return nil, false
 	}
-	return cleanCNPJ, true
+
+	return &cleanCNPJ, true
 }
 
 func NullifyString(value string) *string {
@@ -50,23 +52,13 @@ func NullifyFloat(value string) *float64 {
 	return &result
 }
 
-func LogInvalidEntries(cpf, lojaMaisFrequente, lojaUltimaCompra string) {
-	file, err := os.OpenFile("logs/invalid_entries.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func ParseFloatWithComma(value string) *float64 {
+	value = strings.ReplaceAll(value, ".", "")
+	value = strings.ReplaceAll(value, ",", ".")
+
+	floatValue, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		log.Println("Erro ao abrir o arquivo de log:", err)
-		return
+		return nil
 	}
-	defer file.Close()
-
-	logger := log.New(file, "", log.LstdFlags)
-
-	if cpf != "" {
-		logger.Println("CPF inválido ignorado:", cpf)
-	}
-	if lojaMaisFrequente != "" {
-		logger.Println("CNPJ da loja mais frequente inválido ignorado:", lojaMaisFrequente)
-	}
-	if lojaUltimaCompra != "" {
-		logger.Println("CNPJ da loja última compra inválido ignorado:", lojaUltimaCompra)
-	}
+	return &floatValue
 }

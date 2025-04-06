@@ -27,11 +27,13 @@ type Cliente struct {
 var DB *gorm.DB
 
 func InitDB() {
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Aviso: Não foi possível carregar o arquivo .env. Usando variáveis de ambiente do sistema.")
 	}
+}
+
+func ConnectAndPrepareDatabase() error {
 
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -39,35 +41,38 @@ func InitDB() {
 	password := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
 
-	if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-		log.Fatal("Erro: Uma ou mais variáveis de ambiente do banco de dados não foram definidas.")
+	if host == "" {
+		host = "localhost"
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", host, port, user, password)
-	dbTemp, err := sql.Open("postgres", dsn)
+	if port == "" || user == "" || password == "" || dbname == "" {
+		return fmt.Errorf("erro: variáveis de ambiente do banco não configuradas")
+	}
+
+	dsnPostgres := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", host, port, user, password)
+	dbTemp, err := sql.Open("postgres", dsnPostgres)
 	if err != nil {
-		log.Fatal("Erro ao conectar ao banco de dados postgres:", err)
+		return fmt.Errorf("erro ao conectar no postgres: %v", err)
 	}
 	defer dbTemp.Close()
 
 	_, err = dbTemp.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbname))
 	if err != nil {
-		log.Println("Aviso: O banco já existe ou não pode ser criado:", err)
+		log.Println("Aviso: Banco já existe ou erro ao criar banco:", err)
 	}
 
-	dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Erro ao conectar ao banco de dados:", err)
+		return fmt.Errorf("erro ao conectar ao banco de dados específico: %v", err)
 	}
 
 	DB = db
 
-	log.Println("Executando migração...")
-	err = DB.AutoMigrate(&Cliente{})
-	if err != nil {
-		log.Fatal("Erro ao migrar a estrutura do banco de dados:", err)
+	if err := DB.AutoMigrate(&Cliente{}); err != nil {
+		return fmt.Errorf("erro ao migrar tabela cliente: %v", err)
 	}
 
-	log.Println("Banco de dados conectado e migrado!")
+	log.Println("Banco de dados conectado e migrado com sucesso!")
+	return nil
 }
