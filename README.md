@@ -69,14 +69,6 @@ O sistema conecta-se ao PostgreSQL e cria automaticamente a tabela clientes caso
 docker exec -it parseflow_db psql -U postgres -d parserflow_db
 ```
 
-Logs e Debug
-
-Para visualizar os logs da aplicação, use:
-
-```
-docker-compose logs -f go_parserflow
-```
-
 Se precisar reiniciar completamente os dados do banco de dados:
 
 
