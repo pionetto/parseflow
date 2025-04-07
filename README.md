@@ -106,3 +106,5 @@ O projeto inclui um `Makefile` para facilitar a execução de tarefas comuns:
 
 ```bash
 make up
+
+.
