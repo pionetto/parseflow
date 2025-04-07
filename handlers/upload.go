@@ -88,7 +88,7 @@ func processarArquivo(filePath string) {
 
 	for i := 0; i < NumWorkers; i++ {
 		wg.Add(1)
-		go worker(linesChan, clientesChan, &wg)
+		go Worker(linesChan, clientesChan, &wg)
 	}
 
 	go batchInserter(clientesChan)
@@ -108,7 +108,7 @@ func processarArquivo(filePath string) {
 	}
 }
 
-func worker(linesChan <-chan string, clientesChan chan<- config.Cliente, wg *sync.WaitGroup) {
+func Worker(linesChan <-chan string, clientesChan chan<- config.Cliente, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for line := range linesChan {
@@ -147,8 +147,8 @@ func worker(linesChan <-chan string, clientesChan chan<- config.Cliente, wg *syn
 
 		cliente := config.Cliente{
 			CPF:                *cpf,
-			Private:            parseBool(fields[1]),
-			Incompleto:         parseBool(fields[2]),
+			Private:            ParseBool(fields[1]),
+			Incompleto:         ParseBool(fields[2]),
 			DataUltimaCompra:   utils.NullifyString(fields[3]),
 			TicketMedio:        ticketMedio,
 			TicketUltimaCompra: ticketUltimaCompra,
@@ -183,7 +183,7 @@ func insertBatch(clientes []config.Cliente) {
 	}
 }
 
-func parseBool(value string) bool {
+func ParseBool(value string) bool {
 	val, err := strconv.ParseBool(strings.TrimSpace(value))
 	if err != nil {
 		return false
