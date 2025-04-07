@@ -15,7 +15,9 @@ services:
       - parseflow_net
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: parseflow_app
     restart: always
     ports:
@@ -28,6 +30,23 @@ services:
       DB_NAME: parseflow_db
     depends_on:
       - db
+    networks:
+      - parseflow_net
+
+  # 🧪 NOVO serviço de testes
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: parseflow_tests
+    volumes:
+      - .:/app
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        go test ./... -v -coverprofile=cover.out &&
+        go tool cover -html=cover.out -o cover.html &&
+        echo '✅ Testes rodados e cobertura gerada em cover.html'
     networks:
       - parseflow_net
 
