@@ -6,13 +6,11 @@ ParseFlow é um sistema para processamento e armazenamento eficiente de arquivos
 
 Antes de rodar o projeto, certifique-se de ter instalado:
 
-* Go 1.23+
+* Git
 
 * Docker
 
 * Docker Compose
-
-* Git
 
 * curl para testes de upload de arquivos
 
