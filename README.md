@@ -6,11 +6,16 @@ ParseFlow é um sistema para processamento e armazenamento eficiente de arquivos
 
 Antes de rodar o projeto, certifique-se de ter instalado:
 
+* Go 1.23+
+
 * Docker
 
 * Docker Compose
 
+* Git
+
 * curl para testes de upload de arquivos
+
 
 ## :rocket: Rodando o projeto
 
@@ -77,3 +82,27 @@ docker-compose down -v
 ```
 
 Isso removerá todos os volumes e reiniciará o banco do zero.
+
+## Comandos Disponíveis
+
+O projeto inclui um `Makefile` para facilitar a execução de tarefas comuns:
+
+| Comando | Descrição |
+|:--------|:----------|
+| `make up` | Sobe o ambiente (aplicação + banco de dados) |
+| `make down` | Derruba todos os containers Docker |
+| `make db-up` | Sobe apenas o banco de dados PostgreSQL |
+| `make build` | Build da imagem Docker da aplicação |
+| `make build-test` | Build da imagem Docker para rodar testes |
+| `make test` | Roda os testes unitários dentro do container |
+| `make clean` | Limpa containers, volumes e arquivos de cobertura (`cover.out`, `cover.html`) |
+| `make rebuild-test` | Limpa, faz o build e roda testes automaticamente |
+
+---
+
+### Exemplos de Uso:
+
+- Subir o ambiente local:
+
+```bash
+make up
